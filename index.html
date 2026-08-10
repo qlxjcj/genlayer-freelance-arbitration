@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Freelance Arbitration — GenLayer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0f; color: #e0e0e0; }
+.container { max-width: 900px; margin: 0 auto; padding: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #1a1a2e; margin-bottom: 24px; }
+.header h1 { font-size: 1.4em; color: #8b5cf6; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .2s; }
+.btn-primary { background: #8b5cf6; color: white; }
+.btn-primary:hover { background: #7c3aed; }
+.btn-outline { background: transparent; border: 1px solid #8b5cf6; color: #a78bfa; }
+.btn-outline:hover { background: #8b5cf620; }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.btn-success { background: #16a34a; color: white; }
+.card { background: #12121a; border: 1px solid #1a1a2e; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.card h2 { font-size: 1.1em; margin-bottom: 12px; color: #a78bfa; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+.form-group input, .form-group textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #1a1a2e; background: #0a0a0f; color: #e0e0e0; font-size: 14px; }
+.form-group textarea { min-height: 60px; resize: vertical; }
+.stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat { background: #12121a; border: 1px solid #1a1a2e; border-radius: 10px; padding: 14px; text-align: center; }
+.stat .num { font-size: 1.5em; font-weight: 700; color: #a78bfa; }
+.stat .label { font-size: 10px; color: #666; margin-top: 4px; }
+.status-tag { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.status-ACTIVE { background: #0ea5e920; color: #38bdf8; }
+.status-DISPUTED { background: #f59e0b20; color: #fbbf24; }
+.status-ADJUDICATING { background: #8b5cf620; color: #a78bfa; }
+.status-RESOLVED { background: #16a34a20; color: #16a34a; }
+.explorer-link { color: #8b5cf6; font-size: 11px; text-decoration: none; }
+.toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; font-size: 13px; z-index: 999; }
+.toast-success { background: #16a34a; color: white; }
+.toast-error { background: #dc2626; color: white; }
+.result-box { background:#0a0a0f;padding:12px;border-radius:8px;border:1px solid #1a1a2e;font-size:12px;white-space:pre-wrap;margin-top:10px;color:#888; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>⚖️ Freelance Arbitration</h1>
+      <div style="font-size:11px;color:#666;margin-top:4px;">Escrow + AI dispute resolution · Funds held on-chain</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a class="explorer-link" href="https://explorer-bradbury.genlayer.com/address/0x3B6b02ea05F6c26157D305c6E7AE690F5E1796F2" target="_blank">View on Explorer ↗</a>
+      <button class="btn btn-outline btn-sm" id="connectBtn">Connect Wallet</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat"><div class="num" id="sTotal">—</div><div class="label">Total</div></div>
+    <div class="stat"><div class="num" id="sActive">—</div><div class="label">Active</div></div>
+    <div class="stat"><div class="num" id="sDisputed">—</div><div class="label">Disputed</div></div>
+    <div class="stat"><div class="num" id="sAdjud">—</div><div class="label">Adjudicating</div></div>
+    <div class="stat"><div class="num" id="sResolved">—</div><div class="label">Resolved</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Create Contract (Escrow)</h2>
+    <div class="form-group"><label>Freelancer Address</label><input id="freelancer" placeholder="0x..."></div>
+    <div class="form-group"><label>Work Description</label><textarea id="desc" placeholder="Describe the work agreed upon"></textarea></div>
+    <div class="form-group"><label>Escrow Amount (GEN)</label><input id="amount" placeholder="0.1"></div>
+    <button class="btn btn-primary" id="createBtn">Create & Fund Escrow</button>
+    <div id="createStatus" style="margin-top:10px;font-size:13px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>Dispute Flow</h2>
+    <div class="form-group"><label>Contract ID (string)</label><input id="contractId" placeholder="1"></div>
+    <div class="form-group"><label>Submit Evidence URLs (JSON array)</label><textarea id="evid" placeholder='["https://..."]'></textarea></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-outline" id="evidBtn">Submit Evidence</button>
+      <button class="btn btn-outline" id="disputeBtn">Raise Dispute</button>
+      <button class="btn btn-success" id="adjudicateBtn">Adjudicate (AI)</button>
+      <button class="btn btn-outline" id="claimBtn">Claim Funds</button>
+      <button class="btn btn-outline" id="readBtn">Read Contract</button>
+    </div>
+    <div id="actionStatus" style="margin-top:10px;font-size:13px;"></div>
+    <div id="contractDetail" class="result-box"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7/dist/ethers.umd.min.js"></script>
+<script>
+const CONTRACT = '0x3B6b02ea05F6c26157D305c6E7AE690F5E1796F2';
+const RPC = 'https://rpc-bradbury.genlayer.com';
+const ABI = [
+  'function create_contract(string freelancer, string description)',
+  'function submit_evidence(string contract_id, string evidence_urls_json)',
+  'function raise_dispute(string contract_id)',
+  'function adjudicate(string contract_id)',
+  'function claim_funds(string contract_id)',
+];
+let contract, account;
+
+async function connectWallet() {
+  if (!window.ethereum) return alert('Install MetaMask');
+  await window.ethereum.request({ method: 'eth_requestAccounts' });
+  const provider = new ethers.providers.Web3Provider(window.ethereum);
+  const signer = provider.getSigner();
+  account = await signer.getAddress();
+  contract = new ethers.Contract(CONTRACT, ABI, signer);
+  return account;
+}
+
+document.getElementById('connectBtn').onclick = async () => {
+  try {
+    const addr = await connectWallet();
+    document.getElementById('connectBtn').textContent = addr.slice(0,6)+'...'+addr.slice(-4);
+    document.getElementById('connectBtn').className = 'btn btn-primary btn-sm';
+    toast('Wallet connected!', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+async function genCall(method, args) {
+  const res = await fetch(RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'gen_call', params: [{ to: CONTRACT, function: method, args: args }] })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data.result;
+}
+
+async function loadStats() {
+  try {
+    const s = await genCall('get_stats', []);
+    document.getElementById('sTotal').textContent = s.total;
+    document.getElementById('sActive').textContent = s.active;
+    document.getElementById('sDisputed').textContent = s.disputed;
+    document.getElementById('sAdjud').textContent = s.adjudicating;
+    document.getElementById('sResolved').textContent = s.resolved;
+  } catch(e) { console.log(e); }
+}
+
+document.getElementById('createBtn').onclick = async () => {
+  const fl = document.getElementById('freelancer').value.trim();
+  const desc = document.getElementById('desc').value.trim();
+  const amt = parseFloat(document.getElementById('amount').value);
+  if (!fl || !desc || !amt || amt <= 0) return toast('Fill all fields', 'error');
+  try {
+    if (!contract) await connectWallet();
+    const tx = await contract.create_contract(fl, desc, { value: ethers.utils.parseEther(amt.toString()) });
+    document.getElementById('createStatus').innerHTML = `<span style="color:#16a34a;">Escrow funded! <a class="explorer-link" href="https://explorer-bradbury.genlayer.com/tx/${tx.hash}" target="_blank">${tx.hash.slice(0,10)}...</a></span>`;
+    await tx.wait();
+    toast('Contract created, funds in escrow!', 'success');
+    loadStats();
+  } catch(e) { toast(e.reason || e.message, 'error'); }
+};
+
+document.getElementById('evidBtn').onclick = async () => {
+  const id = document.getElementById('contractId').value.trim();
+  const evid = document.getElementById('evid').value.trim();
+  if (!id || !evid) return toast('Fill fields', 'error');
+  try { JSON.parse(evid); } catch(e) { return toast('Evidence must be valid JSON', 'error'); }
+  try {
+    if (!contract) await connectWallet();
+    const tx = await contract.submit_evidence(id, evid);
+    await tx.wait();
+    toast('Evidence submitted!', 'success');
+  } catch(e) { toast(e.reason || e.message, 'error'); }
+};
+
+document.getElementById('disputeBtn').onclick = async () => {
+  const id = document.getElementById('contractId').value.trim();
+  if (!id) return toast('Enter contract ID', 'error');
+  try {
+    if (!contract) await connectWallet();
+    const tx = await contract.raise_dispute(id);
+    await tx.wait();
+    toast('Dispute raised!', 'success');
+    loadStats();
+  } catch(e) { toast(e.reason || e.message, 'error'); }
+};
+
+document.getElementById('adjudicateBtn').onclick = async () => {
+  const id = document.getElementById('contractId').value.trim();
+  if (!id) return toast('Enter contract ID', 'error');
+  try {
+    if (!contract) await connectWallet();
+    const tx = await contract.adjudicate(id);
+    document.getElementById('actionStatus').innerHTML = `<span style="color:#16a34a;">Adjudicating... <a class="explorer-link" href="https://explorer-bradbury.genlayer.com/tx/${tx.hash}" target="_blank">${tx.hash.slice(0,10)}...</a></span>`;
+    await tx.wait();
+    toast('Adjudicated! AI validators reached consensus.', 'success');
+    loadStats();
+  } catch(e) { toast(e.reason || e.message, 'error'); }
+};
+
+document.getElementById('claimBtn').onclick = async () => {
+  const id = document.getElementById('contractId').value.trim();
+  if (!id) return toast('Enter contract ID', 'error');
+  try {
+    if (!contract) await connectWallet();
+    const tx = await contract.claim_funds(id);
+    await tx.wait();
+    toast('Funds claimed!', 'success');
+  } catch(e) { toast(e.reason || e.message, 'error'); }
+};
+
+document.getElementById('readBtn').onclick = async () => {
+  const id = document.getElementById('contractId').value.trim();
+  if (!id) return toast('Enter contract ID', 'error');
+  const out = document.getElementById('contractDetail');
+  out.textContent = 'Loading from chain...';
+  try {
+    const c = await genCall('get_contract', [id]);
+    out.textContent = JSON.stringify(c, null, 2);
+  } catch(e) { out.textContent = 'Could not read: ' + e.message; }
+};
+
+function toast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast toast-'+type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 5000);
+}
+
+loadStats();
+</script>
+</body>
+</html>
