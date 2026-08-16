@@ -90,7 +90,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 const CONTRACT = '0x3B6b02ea05F6c26157D305c6E7AE690F5E1796F2';
 const RPC = 'https://rpc-bradbury.genlayer.com';
 const ABI = [
-  'function create_contract(string freelancer, string description)',
+  'function create_contract(string freelancer, string description) payable',
   'function submit_evidence(string contract_id, string evidence_urls_json)',
   'function raise_dispute(string contract_id)',
   'function adjudicate(string contract_id)',
