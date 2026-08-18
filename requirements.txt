@@ -1,0 +1,2 @@
+# Direct-mode test runner (in-memory VM, no network/consensus).
+genlayer-test==0.29.2

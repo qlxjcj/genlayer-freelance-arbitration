@@ -47,7 +47,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div style="font-size:11px;color:#666;margin-top:4px;">Escrow + AI dispute resolution · Funds held on-chain</div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
-      <a class="explorer-link" href="https://explorer-bradbury.genlayer.com/address/0x3B6b02ea05F6c26157D305c6E7AE690F5E1796F2" target="_blank">View on Explorer ↗</a>
+      <a class="explorer-link" href="https://explorer-bradbury.genlayer.com/address/0xc3FA52455849A8ffC2aA681A4B1435b15B3ec8cD" target="_blank">View on Explorer ↗</a>
       <button class="btn btn-outline btn-sm" id="connectBtn">Connect Wallet</button>
     </div>
   </div>
@@ -65,6 +65,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="form-group"><label>Freelancer Address</label><input id="freelancer" placeholder="0x..."></div>
     <div class="form-group"><label>Work Description</label><textarea id="desc" placeholder="Describe the work agreed upon"></textarea></div>
     <div class="form-group"><label>Escrow Amount (GEN)</label><input id="amount" placeholder="0.1"></div>
+    <div class="form-group"><label>Deadline (Unix timestamp, optional — for timeout recovery)</label><input id="deadline" placeholder="empty = no timeout"></div>
     <button class="btn btn-primary" id="createBtn">Create & Fund Escrow</button>
     <div id="createStatus" style="margin-top:10px;font-size:13px;"></div>
   </div>
@@ -74,6 +75,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="form-group"><label>Contract ID (string)</label><input id="contractId" placeholder="1"></div>
     <div class="form-group"><label>Submit Evidence URLs (JSON array)</label><textarea id="evid" placeholder='["https://..."]'></textarea></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-success" id="acceptBtn">Accept Work (Release)</button>
+      <button class="btn btn-outline" id="cancelBtn">Cancel (Refund)</button>
+      <button class="btn btn-outline" id="recoverBtn">Recover (Timeout)</button>
       <button class="btn btn-outline" id="evidBtn">Submit Evidence</button>
       <button class="btn btn-outline" id="disputeBtn">Raise Dispute</button>
       <button class="btn btn-success" id="adjudicateBtn">Adjudicate (AI)</button>
@@ -87,10 +91,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7/dist/ethers.umd.min.js"></script>
 <script>
-const CONTRACT = '0x3B6b02ea05F6c26157D305c6E7AE690F5E1796F2';
+const CONTRACT = '0xc3FA52455849A8ffC2aA681A4B1435b15B3ec8cD';
 const RPC = 'https://rpc-bradbury.genlayer.com';
 const ABI = [
-  'function create_contract(string freelancer, string description) payable',
+  'function create_contract(string freelancer, string description, string deadline) payable',
+  'function accept_work(string contract_id)',
+  'function cancel_contract(string contract_id)',
+  'function recover_funds(string contract_id)',
   'function submit_evidence(string contract_id, string evidence_urls_json)',
   'function raise_dispute(string contract_id)',
   'function adjudicate(string contract_id)',
@@ -143,13 +150,51 @@ document.getElementById('createBtn').onclick = async () => {
   const fl = document.getElementById('freelancer').value.trim();
   const desc = document.getElementById('desc').value.trim();
   const amt = parseFloat(document.getElementById('amount').value);
+  let dl = document.getElementById('deadline').value.trim();
   if (!fl || !desc || !amt || amt <= 0) return toast('Fill all fields', 'error');
+  if (!dl) dl = String(Math.floor(Date.now() / 1000) + 7 * 86400);
   try {
     if (!contract) await connectWallet();
-    const tx = await contract.create_contract(fl, desc, { value: ethers.utils.parseEther(amt.toString()) });
+    const tx = await contract.create_contract(fl, desc, dl, { value: ethers.utils.parseEther(amt.toString()) });
     document.getElementById('createStatus').innerHTML = `<span style="color:#16a34a;">Escrow funded! <a class="explorer-link" href="https://explorer-bradbury.genlayer.com/tx/${tx.hash}" target="_blank">${tx.hash.slice(0,10)}...</a></span>`;
     await tx.wait();
     toast('Contract created, funds in escrow!', 'success');
+    loadStats();
+  } catch(e) { toast(e.reason || e.message, 'error'); }
+};
+
+document.getElementById('acceptBtn').onclick = async () => {
+  const id = document.getElementById('contractId').value.trim();
+  if (!id) return toast('Enter contract ID', 'error');
+  try {
+    if (!contract) await connectWallet();
+    const tx = await contract.accept_work(id);
+    await tx.wait();
+    toast('Work accepted! Funds released to freelancer.', 'success');
+    loadStats();
+  } catch(e) { toast(e.reason || e.message, 'error'); }
+};
+
+document.getElementById('cancelBtn').onclick = async () => {
+  const id = document.getElementById('contractId').value.trim();
+  if (!id) return toast('Enter contract ID', 'error');
+  try {
+    if (!contract) await connectWallet();
+    const tx = await contract.cancel_contract(id);
+    await tx.wait();
+    toast('Contract cancelled! Funds refunded to client.', 'success');
+    loadStats();
+  } catch(e) { toast(e.reason || e.message, 'error'); }
+};
+
+document.getElementById('recoverBtn').onclick = async () => {
+  const id = document.getElementById('contractId').value.trim();
+  if (!id) return toast('Enter contract ID', 'error');
+  try {
+    if (!contract) await connectWallet();
+    const tx = await contract.recover_funds(id);
+    await tx.wait();
+    toast('Funds recovered after timeout!', 'success');
     loadStats();
   } catch(e) { toast(e.reason || e.message, 'error'); }
 };
